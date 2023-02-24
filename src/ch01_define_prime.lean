@@ -1,6 +1,9 @@
+-- Try giving a definition of primes.
+-- Includes establishing decidability.
+-- Prove infinitude of primes using factorial.
+
 import data.nat.basic
 import algebra  -- Makes simp more powerful.
-
 
 def myprime (n : ℕ) := 1 < n ∧ ∀ (k : ℕ), 1 < k → k < n → ¬(k ∣ n)
 

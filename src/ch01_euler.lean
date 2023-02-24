@@ -1,3 +1,6 @@
+-- Euler's proof of the infinitude of primes.
+-- Uses the product of all primes up to n.
+
 import data.nat.basic
 import data.nat.prime
 
