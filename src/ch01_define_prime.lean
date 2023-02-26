@@ -418,21 +418,16 @@ lemma not_dvd_succ_factorial {n k : ℕ} :
 begin
   intro hk1,
   intro hkn,
-  have hk0 : 0 < k := lt_trans _ hk1,  -- Used multiple times.
+  have hk0 : 0 < k := lt_trans nat.zero_lt_one hk1,  -- Used multiple times.
   have h := dvd_factorial hk0 hkn,
-  rw dvd_iff_exists_eq_mul_left at h,
   cases h with a ha,
   rw ← (nat.not_dvd_iff_between_consec_multiples (factorial n + 1) hk0),
   rw ha,
   apply exists.intro a,
   apply and.intro,
-    rw mul_comm,
-    rw nat.add_one,
-    apply nat.lt_succ_self,
-  rw mul_add,
-  simp,
-  rw mul_comm,
-  apply add_lt_add_left hk1, simp,
+    simp,
+  simp [mul_add],
+  exact hk1,
 end
 
 lemma zero_lt_factorial {n : ℕ} : 0 < factorial n :=
