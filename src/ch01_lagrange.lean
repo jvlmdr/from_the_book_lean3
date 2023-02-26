@@ -1,10 +1,18 @@
--- Uses Lagrange's theorem (order_of_dvd_card_sub_one).
+-- Proves infinitude of primes using group theory.
 
 import data.nat.basic
 import data.nat.prime
 import data.zmod.basic
-import number_theory.lucas_lehmer  -- mersenne
 import field_theory.finite.basic  -- order_of_dvd_card_sub_one
+import group_theory.order_of_element  -- order_of_eq_prime
+import order.monotone.basic
+
+-- Two important properties:
+#check @zmod.order_of_dvd_card_sub_one
+#check @order_of_eq_prime
+
+
+def mersenne (n : ℕ) := 2 ^ n - 1  -- number_theory.lucas_lehmer
 
 
 lemma order_eq_of_two_ne_one {p q : ℕ} [hp : fact (nat.prime p)] :
@@ -15,25 +23,30 @@ begin
   apply order_of_eq_prime h h_ne,
 end
 
-lemma mod_two_ne_one_of_prime {q : ℕ} : nat.prime q → (2 : zmod q) ≠ 1 :=
+-- 2 ≠ 1 in F_q for q ≥ 2.
+-- Useful for order_of_eq_prime.
+lemma zmod_two_ne_one {q : ℕ} : 2 ≤ q → (2 : zmod q) ≠ 1 :=
 begin
   intro hq,
-  have h_prime := nat.prime.two_le hq,
-  have h_mod := @zmod.eq_iff_modeq_nat q 2 1,
-  simp at h_mod,  -- Need to simplify before rewrite (apply the casts).
   simp,
+  have h_mod := @zmod.eq_iff_modeq_nat q 2 1,
+  simp at h_mod,  -- Need to simp before rw (lifts constants to zmod q).
   rw h_mod,
-  cases has_le.le.eq_or_lt h_prime with hq' hq',
-    rw ← hq',
-    dec_trivial,
+  have hq := has_le.le.eq_or_lt hq,
+  cases hq with hq hq,
+    rw ← hq, dec_trivial,
   intro h,
-  have h := nat.modeq.eq_of_lt_of_lt h hq' _,
+  have h := nat.modeq.eq_of_lt_of_lt h hq _,
+    -- 2 ≡ 0 [MOD q] with q = 2
     simp at h, exact h,
-  apply lt_trans _ hq',
+  -- 2 ≡ 2 [MOD q] with q > 2
+  apply lt_trans _ hq,  -- 1 < 2 < q
   dec_trivial,
 end
 
-lemma mod_two_ne_zero_of_two_lt {q : ℕ} : 2 < q → (2 : zmod q) ≠ 0 :=
+-- 2 ≠ 0 in F_q for q > 2.
+-- Useful for zmod.order_of_dvd_card_sub_one.
+lemma zmod_two_ne_zero {q : ℕ} : 2 < q → (2 : zmod q) ≠ 0 :=
 begin
   intro h2,
   have h_mod := @zmod.eq_iff_modeq_nat q 2 0,
@@ -46,7 +59,9 @@ begin
   apply has_lt.lt.not_le h2 h,
 end
 
-lemma two_pow_eq_one_of_dvd_mersenne {p q : ℕ} :
+-- 2 ^ q = 1 if q ∣ mersenne p.
+-- Useful for order_of_eq_prime.
+lemma zmod_two_pow_eq_one_of_mersenne {p q : ℕ} :
   q ∣ mersenne p → (2 : zmod q)^p = 1 :=
 begin
   rw mersenne,
@@ -84,27 +99,35 @@ begin
   simp,
 end
 
+lemma lt_of_dvd_sub_one {p q : ℕ} : 2 < q → p ∣ q - 1 → p < q :=
+begin
+  cases q, simp,  -- Consider (q.succ) - 1 = q.
+  simp,
+  intro hq,
+  intro h_dvd,
+  apply nat.lt_succ_of_le,
+  apply nat.le_of_dvd _ h_dvd,
+  have hq := nat.le_of_lt_succ hq,
+  apply lt_of_le_of_lt' hq,
+  dec_trivial,
+end
+
 -- For p prime, any prime factor q of (mersenne p) satisfies p < q.
-theorem lt_of_dvd_mersenne {p q : ℕ} [hp : fact (nat.prime p)] [hq : fact (nat.prime q)] :
+theorem lt_of_dvd_mersenne {p q : ℕ} [hp : fact p.prime] [hq : fact q.prime] :
   q ∣ mersenne p → p < q :=
 begin
   intro h_mersenne,
-  have hq' : 2 < q := _,
-    have h_dvd := zmod.order_of_dvd_card_sub_one (mod_two_ne_zero_of_two_lt hq'),
-    have h_eq : order_of (2 : zmod q) = p := order_eq_of_two_ne_one (mod_two_ne_one_of_prime hq.out) _,
-      rw h_eq at h_dvd,
-      have h_dvd := nat.le_of_dvd _ h_dvd,
-        have h_dvd := nat.lt_succ_of_le h_dvd,
-        rw ← nat.add_one at h_dvd,
-        rw nat.sub_add_cancel _ at h_dvd,
-          exact h_dvd,
-        apply lt_trans _ hq', dec_trivial,
-      rw nat.sub_one,
-      have hq' := nat.pred_lt_pred _ hq', simp at hq',
-        apply lt_trans _ hq',
-        simp,
-      simp,
-    apply two_pow_eq_one_of_dvd_mersenne h_mersenne,
+  have hq' : 2 < q := _,  -- 2 < q since q prime, q ∣ mersenne p, (mersenne p) is odd.
+    -- Use (fact q.prime).
+    have h_dvd : order_of (2 : zmod q) ∣ q - 1 := zmod.order_of_dvd_card_sub_one _,
+      -- Use (fact p.prime).
+      have h_eq : order_of (2 : zmod q) = p := order_of_eq_prime _ _,
+          -- Show p < q since p ∣ (q - 1).
+          rw h_eq at h_dvd,
+          apply lt_of_dvd_sub_one hq' h_dvd,
+        apply zmod_two_pow_eq_one_of_mersenne h_mersenne,
+      apply zmod_two_ne_one (le_of_lt hq'),
+    apply zmod_two_ne_zero hq',
   have h2 := nat.prime.two_le hq.out,
   rw le_iff_eq_or_lt at h2,
   cases h2,
@@ -156,4 +179,56 @@ begin
     apply nat.min_fac_dvd,
   have h := one_lt_mersenne (nat.prime.one_lt hp),
   intro h', rw h' at h, simp at h, exact h,
+end
+
+
+-- Just for fun, try out the mapping from ℕ to primes.
+def make_prime : ℕ → ℕ
+| 0 := 2
+| (n+1) := (mersenne (make_prime n)).min_fac
+
+#eval make_prime 3  -- 127
+-- make_prime 4 requires (2^127 - 1).min_fac
+
+lemma one_lt_make_prime (n : ℕ) : 1 < make_prime n :=
+begin
+  induction n with k hk,
+    rw make_prime, simp,
+  rw make_prime,
+  apply nat.prime.one_lt,
+  apply nat.min_fac_prime,
+  have h := one_lt_mersenne hk,
+  intro h',
+  rw h' at h, simp at h, contradiction,
+end
+
+lemma make_prime_is_prime (n : ℕ) : (make_prime n).prime :=
+begin
+  cases n, rw make_prime, apply nat.prime_two,
+  rw make_prime,
+  apply nat.min_fac_prime,
+  have h := one_lt_mersenne (one_lt_make_prime n),
+  intro h',
+  rw h' at h, simp at h, contradiction,
+end
+
+lemma make_prime_lt_make_prime_succ (k : ℕ) : make_prime k < make_prime k.succ :=
+begin
+  have hp := make_prime_is_prime k,
+  have hq := make_prime_is_prime k.succ,
+  apply @lt_of_dvd_mersenne (make_prime k) (make_prime k.succ) (fact.mk hp) (fact.mk hq),
+  rw make_prime,
+  apply nat.min_fac_dvd,
+end
+
+lemma make_prime_strict_mono {k n : ℕ} : k < n → make_prime k < make_prime n :=
+  by apply strict_mono_nat_of_lt_succ make_prime_lt_make_prime_succ
+
+-- Prove that make_prime n generates a new prime number for any n.
+theorem infinite_primes' (n : ℕ) :
+  nat.prime (make_prime n) ∧ ∀ (k : ℕ), k < n → make_prime k < make_prime n :=
+begin
+  apply and.intro (make_prime_is_prime _),
+  intro k,
+  exact make_prime_strict_mono,
 end
