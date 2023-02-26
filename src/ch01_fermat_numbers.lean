@@ -191,7 +191,7 @@ begin
   simp,
 end
 
-lemma not_make_prime_eq_one (n : ℕ) : ¬ make_prime n = 1 :=
+lemma not_make_prime_eq_one {n : ℕ} : ¬ make_prime n = 1 :=
 begin
   intro h',
   apply nat.not_prime_one,
@@ -207,15 +207,13 @@ begin
   cases n, simp,
     apply nat.min_fac_prime,
     rw fermat_num, simp,
-  apply and.intro,
-    apply nat.min_fac_prime,
-    rw fermat_num, simp,
+  apply and.intro (make_prime_is_prime _),
   intro k,
   intro hk,
   have h_prime := make_prime_is_prime k,
   simp, intro h_eq,
   have h := fermat_coprime hk (make_prime k),  -- but we know that make_prime k ≠ 1
-  apply not_make_prime_eq_one k,
+  apply not_make_prime_eq_one,
   apply h,
     rw make_prime,
     apply nat.min_fac_dvd,
