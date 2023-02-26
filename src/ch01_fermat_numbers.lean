@@ -8,9 +8,9 @@ import data.nat.prime
 
 def fermat_num (n : ℕ) := 2^(2^n) + 1
 
-def fermat_num_prod : ℕ → ℕ
+def fermat_prod : ℕ → ℕ
 | 0 := 1
-| (n+1) := fermat_num n * fermat_num_prod n
+| (n+1) := fermat_num n * fermat_prod n
 
 
 lemma two_lt_fermat_num (n : ℕ) : 2 < fermat_num n :=
@@ -24,7 +24,7 @@ begin
   simp,
 end
 
-lemma odd_iff (n : ℕ) : ¬ 2 ∣ n ↔ n % 2 = 1 :=
+lemma odd_iff {n : ℕ} : ¬ 2 ∣ n ↔ n % 2 = 1 :=
 begin
   rw nat.dvd_iff_mod_eq_zero,
   apply iff.intro,
@@ -48,15 +48,14 @@ begin
   simp [nat.add_mod, nat.pow_mod],
 end
 
+-- The main result on which the proof depends.
 theorem prod_add_two_eq_num {n : ℕ} :
-  0 < n → fermat_num_prod n + 2 = fermat_num n :=
+  fermat_prod n + 2 = fermat_num n :=
 begin
-  intro h,
-  clear h,
   rw fermat_num,
   induction n with k hk,
-    rw fermat_num_prod, simp,
-  rw fermat_num_prod,
+    rw fermat_prod, simp,
+  rw fermat_prod,
   rw fermat_num,
   simp [add_mul],
   rw add_assoc,
@@ -73,26 +72,35 @@ begin
   exact hk,
 end
 
+
+lemma fermat_num_dvd_prod {k n : ℕ} : k < n → fermat_num k ∣ fermat_prod n :=
+begin
+  cases n,
+    simp,
+  intro hkn,
+  cases nat.le.dest (nat.le_of_lt_succ hkn) with d hd,
+  rw ← hd, clear hkn hd,
+  induction d with i hi,
+    simp,
+    rw fermat_prod, simp,
+  rw nat.add_succ,
+  rw fermat_prod,
+  apply dvd_trans hi,
+  simp,
+end
+
 lemma fermat_dvd_fermat_sub_two {k n : ℕ} :
   k < n → fermat_num k ∣ fermat_num n - 2 :=
 begin
+  cases n,
+    simp,
   intro hkn,
-  have hn : 0 < n := lt_of_le_of_lt (nat.zero_le _) hkn,
-  induction n with m hm,
-    simp at hn, contradiction,
-  rw ← prod_add_two_eq_num hn,
-  have hd := nat.le.dest (nat.le_of_lt_succ hkn),
-  cases hd with d hd,
-  rw ← hd, simp [nat.succ_add],
-  clear hd,
-  induction d with i hi,
-    simp, rw fermat_num_prod, simp,
-  simp [nat.add_succ],
-  rw fermat_num_prod,
-  apply dvd_trans hi _, simp,
+  rw ← @prod_add_two_eq_num n.succ, simp,
+  apply fermat_num_dvd_prod hkn,
 end
 
-lemma dvd_two_iff (m : ℕ) : m ∣ 2 ↔ m = 1 ∨ m = 2 :=
+-- Lazy proof of a simple result.
+lemma dvd_two_iff {m : ℕ} : m ∣ 2 ↔ m = 1 ∨ m = 2 :=
 begin
   apply iff.intro,
     cases m, simp,
@@ -150,7 +158,7 @@ begin
   apply nat_dvd_add_right hb ha,
 end
 
--- The main theorem.
+-- All fermat numbers are co-prime.
 theorem fermat_coprime {k n : ℕ} :
   k < n → ∀ (m : ℕ), (m ∣ fermat_num k) → (m ∣ fermat_num n) → m = 1 :=
 begin
@@ -158,17 +166,21 @@ begin
   intro m,
   intro hfk,
   intro hfn,
-  have hfn2 := dvd_trans hfk (fermat_dvd_fermat_sub_two hkn),
-  have h' := two_lt_fermat_num n,  -- Used in multiple places.
-  have h := nat_dvd_sub_right (le_of_lt h') hfn hfn2,
-  rw dvd_two_iff at h,
-  cases h, assumption,
-  exfalso,
-  apply fermat_num_odd k,
-  rw h at hfk, exact hfk,
+  have h_dvd_sub_two := dvd_trans hfk (fermat_dvd_fermat_sub_two hkn),
+  -- Combine the two dvd results to obtain constraint on m.
+  have h := nat_dvd_sub_right _ hfn h_dvd_sub_two,
+    rw dvd_two_iff at h,
+    cases h, assumption,
+    -- m cannot be 2 since all Fermat numbers are odd.
+    exfalso,
+    apply fermat_num_odd k,
+    rw h at hfk, exact hfk,
+  apply le_of_lt,
+  apply two_lt_fermat_num,
 end
 
--- Function that produces new prime numbers.
+
+-- Function that maps any number to a novel prime number.
 def make_prime (n : ℕ) := (fermat_num n).min_fac
 
 lemma make_prime_is_prime (n : ℕ) : nat.prime (make_prime n) :=
