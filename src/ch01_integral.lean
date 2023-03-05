@@ -1,18 +1,13 @@
-import algebra
 import analysis.special_functions.integrals
-import analysis.special_functions.log.basic
-import analysis.special_functions.log.deriv
 import analysis.special_functions.non_integrable
-import analysis.special_functions.trigonometric.basic
 import data.real.basic
 import data.nat.basic
+import data.int.basic
 import data.set.basic
 import data.set.intervals.basic
-import measure_theory.integral.integrable_on
 import measure_theory.integral.interval_integral
-import topology.algebra.order.floor
 
-open real
+open real measure_theory
 
 lemma log_eq_integral_inv {x : ℝ} : 1 ≤ x → log x = ∫ (t : ℝ) in 1..x, t⁻¹ :=
 begin
@@ -22,7 +17,7 @@ begin
 end
 
 noncomputable def harmonic (n : ℕ) := (finset.Icc 1 n).sum (λ k, (↑k)⁻¹ : ℕ → ℝ)
-noncomputable def staircase (x : ℝ) := (⌊x⌋ : ℝ)⁻¹
+noncomputable def staircase (x : ℝ) : ℝ := (↑⌊x⌋)⁻¹
 
 
 -- Show that staircase is antitone on [1, ∞).
@@ -50,7 +45,8 @@ begin
 end
 
 -- To be used with antitone_on.interval_integrable.
-lemma antitone_on_staircase_uIcc {a b : ℝ} (ha : 1 ≤ a) (hb : 1 ≤ b) : antitone_on staircase (set.uIcc a b) :=
+lemma antitone_on_staircase_uIcc {a b : ℝ} (ha : 1 ≤ a) (hb : 1 ≤ b) :
+  antitone_on staircase (set.uIcc a b) :=
 begin
   apply antitone_on.mono antitone_on_staircase,
   cases le_or_lt a b with hab hba,
@@ -64,60 +60,44 @@ begin
     exact hb },
 end
 
--- Short but used in two places.
+-- Trivial but used in two places.
 lemma interval_integrable_staircase {a b : ℝ} (ha : 1 ≤ a) (hb : 1 ≤ b)
-  : interval_integrable staircase measure_theory.measure_space.volume a b :=
+  : interval_integrable staircase volume a b :=
 begin
   apply antitone_on.interval_integrable,
   apply antitone_on_staircase_uIcc ha hb,
 end
 
--- -- Short but used in two places.
--- lemma interval_integrable_staircase
---   {a b : ℝ} (ha : 1 ≤ a) (hb : 1 ≤ b)
---   : interval_integrable staircase measure_theory.measure_space.volume a b
---   := antitone_on.interval_integrable (antitone_on_staircase ha hb)
 
--- Some way to avoid writing `measure_theory.measure_space.volume` in `interval_integrable?
--- variables {μ : measure_theory.measure ℝ} [measure_theory.is_locally_finite_measure μ]
--- noncomputable def μ : measure_theory.measure ℝ := measure_theory.measure_space.volume
-
--- lemma interval_integrable_staircase
---   {μ : measure_theory.measure ℝ} [measure_theory.is_locally_finite_measure μ]
---   {a b : ℝ} (ha : 1 ≤ a) (hb : 1 ≤ b)
---   : interval_integrable staircase μ a b
---   := antitone_on.interval_integrable (antitone_on_staircase ha hb)
-
--- lemma interval_integrable_staircase
---     {μ : measure_theory.measure ℝ} [measure_theory.is_locally_finite_measure μ]
---     {a b : ℝ} (ha : 1 ≤ a) (hb : 1 ≤ b) :
---   interval_integrable staircase μ a b :=
--- begin
---   apply antitone_on.interval_integrable,
---   exact antitone_on_staircase ha hb,
--- end
-
-
--- Given proofs of integral, prove value of integral.
-
--- Use this function to partition the integral into pieces.
-def step (k : ℕ) := (k : ℝ)
+-- After proving staircase is integrable, prove value of integral.
 
 noncomputable def const_fun (n : ℕ) : ℝ → ℝ := λ _, (n : ℝ)⁻¹
 
-lemma staircase_part_eq_ae (n : ℕ) {μ : measure_theory.measure ℝ} :
-  ∀ᵐ (x : ℝ) ∂μ, x ∈ set.uIoc (n : ℝ) (↑n + 1) → staircase x = const_fun n x :=
-begin
-  -- Just remains to prove this!
-  sorry,
-end
-
-lemma integral_staircase_part_eq (n : ℕ) :
+lemma piece_integral_staircase_eq (n : ℕ) :
   ∫ (t : ℝ) in ↑n..↑n + 1, staircase t = (n : ℝ)⁻¹ :=
 begin
-  rw interval_integral.integral_congr_ae (staircase_part_eq_ae n),
-  rw const_fun,
-  simp,
+  -- rw interval_integral.integral_of_le (by simp : (n : ℝ) ≤ (n : ℝ) + 1),
+  rw interval_integral.integral_congr_ae
+    (_ : ∀ᵐ (x : ℝ) ∂_, x ∈ _ → staircase x = const_fun n x),
+  { rw const_fun, simp, },
+  { -- Need to prove staircase is ae-equal to const_fun in the interval.
+    rw ae_iff,
+    -- Use volume set ≤ volume {b} = 0.
+    rw ← le_zero_iff,
+    apply le_of_le_of_eq (measure_mono (_ : _ ⊆ ({↑n + 1} : set ℝ))),
+    { exact volume_singleton, },
+    { simp,
+      intros x hax hxb hnp,
+      rw le_iff_lt_or_eq at hxb,
+      cases hxb,
+      { exfalso,
+        apply hnp,
+        rw [staircase, const_fun], simp,
+        rw [← int.cast_coe_nat, int.cast_inj],
+        rw int.floor_eq_iff, simp,
+        apply and.intro _ hxb,
+        exact le_of_lt hax, },
+      { exact hxb, }, }, },
 end
 
 -- Specialized for natural numbers.
@@ -130,6 +110,9 @@ begin
   rw finset.mem_Ico,
   rw nat.lt_succ_iff,
 end
+
+-- Use this function to partition the integral into pieces.
+def step (k : ℕ) := (k : ℝ)
 
 lemma integral_step_eq {f : ℝ → ℝ} (n : ℕ) :
   ∫ (x : ℝ) in step n..step (n + 1), f x = ∫ (t : ℝ) in ↑n..↑n + 1, f t :=
@@ -150,7 +133,7 @@ begin
   { -- Prove sums are equal.
     -- The integral functions have (step ...) inside.
     rw function.funext_iff.mpr integral_step_eq,
-    rw function.funext_iff.mpr integral_staircase_part_eq,
+    rw function.funext_iff.mpr piece_integral_staircase_eq,
     rw harmonic,
     rw finset_Ico_succ },
   { -- Prove each interval is integrable.
@@ -166,7 +149,7 @@ begin
 end
 
 
--- Prove that integral of x → x⁻¹ is bounded above.
+-- Prove that integral of x⁻¹ is less than integral of staircase.
 
 lemma inv_le_staircase {x : ℝ} : 1 ≤ x → x⁻¹ ≤ staircase x :=
 begin
@@ -199,11 +182,12 @@ begin
     exact not_le_of_lt zero_lt_one h }
 end
 
-lemma log_add_one_le_harmonic (n : ℕ) : log (↑n + 1) ≤ harmonic n :=
+-- Could instead prove ∀ x : ℝ, log x ≤ harmonic ⌊x⌋₊
+-- However, the proof only requires a proof for integer values.
+lemma log_add_one_le_harmonic {n : ℕ} : log (↑n + 1) ≤ harmonic n :=
 begin
-  have hn : 1 ≤ (↑n + 1 : ℝ) := _,
-    rw log_eq_integral_inv hn,
-    apply le_trans (integral_inv_le_integral_staircase hn),
-    rw integral_staircase_eq_harmonic,
-  simp,
+  have hn : (1 : ℝ) ≤ (↑n + 1) := by simp,
+  rw log_eq_integral_inv hn,
+  apply le_trans (integral_inv_le_integral_staircase hn),
+  rw integral_staircase_eq_harmonic,
 end
