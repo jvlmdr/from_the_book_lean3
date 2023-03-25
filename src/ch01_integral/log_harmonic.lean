@@ -73,7 +73,7 @@ end
 
 noncomputable def const_fun (n : ℕ) : ℝ → ℝ := λ _, (n : ℝ)⁻¹
 
-lemma piece_integral_staircase_eq (n : ℕ) :
+lemma piece_integral_staircase_eq {n : ℕ} :
   ∫ (t : ℝ) in ↑n..↑n + 1, staircase t = (n : ℝ)⁻¹ :=
 begin
   -- rw interval_integral.integral_of_le (by simp : (n : ℝ) ≤ (n : ℝ) + 1),
@@ -104,8 +104,7 @@ end
 -- (Could use finset.range instead and shift indices?)
 lemma finset_Ico_succ {a b : ℕ} : finset.Ico a b.succ = finset.Icc a b :=
 begin
-  rw finset.ext_iff,
-  intro x,
+  ext x,
   rw finset.mem_Icc,
   rw finset.mem_Ico,
   rw nat.lt_succ_iff,
@@ -113,12 +112,6 @@ end
 
 -- Use this function to partition the integral into pieces.
 def step (k : ℕ) := (k : ℝ)
-
-lemma integral_step_eq {f : ℝ → ℝ} (n : ℕ) :
-  ∫ (x : ℝ) in step n..step (n + 1), f x = ∫ (t : ℝ) in ↑n..↑n + 1, f t :=
-begin
-  simp, rw step, rw step, simp,
-end
 
 lemma integral_staircase_eq_harmonic {n : ℕ} :
   ∫ (t : ℝ) in 1..(↑n + 1), staircase t = harmonic n :=
@@ -131,21 +124,21 @@ begin
   have hmn : 1 ≤ n + 1 := by simp,
   rw ← interval_integral.sum_integral_adjacent_intervals_Ico hmn,
   { -- Prove sums are equal.
-    -- The integral functions have (step ...) inside.
-    rw function.funext_iff.mpr integral_step_eq,
-    rw function.funext_iff.mpr piece_integral_staircase_eq,
+    simp_rw step,
+    push_cast,
+    simp_rw piece_integral_staircase_eq,
     rw harmonic,
-    rw finset_Ico_succ },
+    rw finset_Ico_succ, },
   { -- Prove each interval is integrable.
-    intro k,
-    intro hk,
-    rw step, rw step, simp,
+    simp_rw step,
+    push_cast,
+    intros k hk,
     have hp : (1 : ℝ) ≤ 1 := by simp,
-    have hq : (1 : ℝ) ≤ ↑k + 1 := _,
-    { apply interval_integrable.mono_set (interval_integrable_staircase hp hq),
-      apply set.uIcc_subset_uIcc_right,
-      simp, exact hk.left },
-    { simp } },
+    have hq : (1 : ℝ) ≤ ↑k + 1 := by simp,
+    -- TODO: Use mono?
+    apply interval_integrable.mono_set (interval_integrable_staircase hp hq),
+    apply set.uIcc_subset_uIcc_right,
+    simp, exact hk.left, },
 end
 
 
