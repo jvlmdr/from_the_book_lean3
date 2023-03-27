@@ -388,16 +388,11 @@ begin
   rw ← h,
   clear h,
 
-  have h : ∀ {f g : _ → ennreal},
-    f = g →
-    (⨆ (s : finset (Π (p : nat.primes), p ∈ primes_le n → ℕ)), ∑ x in s, f x) =
-    (⨆ (s : finset (Π (p : nat.primes), p ∈ primes_le n → ℕ)), ∑ x in s, g x) := by
-  { intros f g hf, rw hf, },
-  apply h,
-  clear h,
+  apply supr_congr,
+  intro s,
+  apply finset.sum_congr rfl,
+  intros ks hks,
 
-  apply funext,
-  intro x,
   simp [primes_le.multiset_prod, finset_pi_to_multiset],
   norm_cast,
   simp,
