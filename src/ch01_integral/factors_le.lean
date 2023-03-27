@@ -14,8 +14,6 @@ import order.with_bot  -- with_bot.decidable_le
 open_locale big_operators
 
 
-def primes_le (n : ℕ) : finset nat.primes := (finset.range (n+1)).subtype nat.prime 
-
 def is_prime_le (n p : ℕ) : Prop := p ≤ n ∧ p.prime
 
 -- Is this necessary? Feels redundant?
@@ -29,7 +27,6 @@ end
 -- However, it's difficult to work with (list.maximum ≤ n).
 -- Instead define with for-all statement; use list.maximum to prove decidable.
 def all_factors_le (n k : ℕ) : Prop := ∀ (p : ℕ), p ∈ k.factors → p ≤ n
-
 
 -- Prove decidable.
 

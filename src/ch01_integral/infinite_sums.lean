@@ -1,30 +1,38 @@
-import .factors_le
 import data.real.basic
 import data.real.nnreal
 import data.real.ennreal
 import data.pnat.factors
 import data.pnat.prime
 import data.finset.basic
+import data.finset.pointwise
 import data.multiset.basic
 import data.multiset.fintype
--- import data.multiset.bind  -- Causes timeout?
+import data.multiset.bind
 import order.filter.basic
 import order.filter.at_top_bot
--- import group_theory.submonoid.membership  -- Causes timeout?
+import group_theory.submonoid.membership
 import analysis.specific_limits.basic
 import topology.basic
 import topology.algebra.infinite_sum
 import topology.instances.ennreal
 import logic.equiv.defs
+import algebra.group.basic  -- inv_inj
+import algebra.group_power.basic  -- inv_pow
+import algebra.big_operators.basic  -- finset.prod_inv_distrib
 
 open real filter
 open_locale big_operators
 
+variables {n : ℕ}
 
--- Establish equivalence of (pnat_factors_le n) and finset.pi (for prod_sum).
+def primes_le (n : ℕ) : finset nat.primes := (finset.range (n+1)).subtype nat.prime 
 
-def pnat_factors_le (n : ℕ) : submonoid ℕ+ := {
-  carrier := {x | all_factors_le n x},
+def all_factors_le (n k : ℕ) : Prop := ∀ (p : ℕ), p ∈ k.factors → p ≤ n
+
+-- Define (commutative) submonoid of pnat using only primes_le n (closed under mul).
+-- Later: Establish equivalence of (pnat_fac_le n) and finset.pi (for prod_sum).
+def pnat_fac_le (n : ℕ) : submonoid ℕ+ := {
+  carrier := {x | all_factors_le n x},  -- Doesn't need decidable?
   mul_mem' := by {
     simp [all_factors_le],
     intros a b ha hb p,
@@ -36,24 +44,17 @@ def pnat_factors_le (n : ℕ) : submonoid ℕ+ := {
   one_mem' := by { simp [all_factors_le], },
 }
 
-variables {n : ℕ}
 
-namespace pnat_factors_le
--- variables {n : ℕ}
+namespace pnat_fac_le
 
-instance ordered_comm_monoid_pnat_factors_le : ordered_comm_monoid (pnat_factors_le n) :=
+instance ordered_comm_monoid : _root_.ordered_comm_monoid ↥(pnat_fac_le n) :=
   submonoid.to_ordered_comm_monoid _
 
-@[simp]
-def mk {a : ℕ+} (h : all_factors_le n a) : pnat_factors_le n := subtype.mk a h
-
-instance has_one_pnat_factors_le : has_one (pnat_factors_le n) :=
-{ one := mk (show all_factors_le n (1 : ℕ+), by simp [all_factors_le]), }
-
-lemma coe_pnat_eq (a : ℕ+) {h : all_factors_le n a} : a = ↑(mk h) :=
-by { simp [mk], }
+instance has_one_pnat_fac_le : has_one (pnat_fac_le n) :=
+{ one := ⟨1, show all_factors_le n (1 : ℕ+), by simp [all_factors_le]⟩, }
 
 -- Necessary to define this? Seems to be needed below.
+-- (`prime_multiset` is defined equal to `multiset nat.primes`)
 instance has_mem_prime_multiset : has_mem nat.primes prime_multiset := { mem := multiset.mem, }
 
 -- Switch to/from `nat.factors` representation (more results available?).
@@ -67,48 +68,44 @@ begin
 end
 
 -- Need to add has_mem to prime_multiset for this?
-lemma mem_primes_le_of_mem_factor_multiset {x : pnat_factors_le n} {p : nat.primes} :
+lemma mem_primes_le_of_mem_factor_multiset {x : pnat_fac_le n} {p : nat.primes} :
   p ∈ pnat.factor_multiset ↑x → p ∈ primes_le n :=
 begin
-  simp [mem_factor_multiset_iff],
   cases x with x hx,
   cases x with x hx',
   simp,
   intro hp,
-  simp [pnat_factors_le, ← submonoid.mem_carrier, all_factors_le] at hx,
+  simp [pnat_fac_le, ← submonoid.mem_carrier, all_factors_le] at hx,
+  simp [mem_factor_multiset_iff] at hp,
   specialize hx p hp,
   simp [primes_le, nat.lt_succ_iff],
   exact hx,
 end
 
-def factor_multiset (x : pnat_factors_le n) : multiset ↥(primes_le n) :=
+-- Is use of attach here neat? Or does it make things messier later?
+def factor_multiset (x : pnat_fac_le n) : multiset ↥(primes_le n) :=
   (pnat.factor_multiset ↑x).attach.map
   (λ p, ⟨p.val, (mem_primes_le_of_mem_factor_multiset p.property)⟩)
 
-lemma le_of_mem_primes_le (p : nat.primes) : p ∈ primes_le n → ↑p ≤ n :=
-by { simp [primes_le, nat.lt_succ_iff], }
+end pnat_fac_le
 
-lemma mem_pnat_factors_le_of_mem_primes_le {p : nat.primes} : p ∈ primes_le n → ↑p ∈ pnat_factors_le n :=
+
+namespace primes_le
+
+lemma mem_pnat_fac_le_of_mem_primes_le {p : nat.primes} : p ∈ primes_le n → ↑p ∈ pnat_fac_le n :=
 begin
   simp [primes_le, nat.lt_succ_iff],
-  simp [pnat_factors_le, all_factors_le],
+  simp [pnat_fac_le, all_factors_le],
   cases p with p hp,
   simp [← coe_coe],
   simp [nat.factors_prime hp],
 end
 
+-- Enable cast from (primes_le n) to (pnat_fac_le n).
+instance has_coe_pnat_fac_le : has_coe ↥(primes_le n) (pnat_fac_le n) :=
+{ coe := λ p, ⟨↑(p.val), mem_pnat_fac_le_of_mem_primes_le p.property⟩, }
 
-namespace primes_le
-
--- Enable cast from (primes_le n) to (pnat_factors_le n).
-instance has_coe_pnat_factors_le : has_coe ↥(primes_le n) (pnat_factors_le n) :=
-{ coe := λ p, ⟨↑(p.val), mem_pnat_factors_le_of_mem_primes_le p.property⟩, }
-
--- Should be unnecessary!
--- instance has_coe_primes : has_coe ↥(primes_le n) nat.primes :=
--- { coe := λ p, p.val, }
-
-instance has_coe_multiset_pnat_factors_le : has_coe (multiset ↥(primes_le n)) (multiset (pnat_factors_le n)) :=
+instance has_coe_multiset_pnat_fac_le : has_coe (multiset ↥(primes_le n)) (multiset (pnat_fac_le n)) :=
 { coe := λ s, s.map coe, }
 
 instance has_coe_prime_multiset : has_coe (multiset ↥(primes_le n)) prime_multiset :=
@@ -123,12 +120,14 @@ begin
   exact subtype.coe_injective,
 end
 
+def multiset_prod : multiset ↥(primes_le n) → pnat_fac_le n := λ s, multiset.prod ↑s
+
 end primes_le
 
 
-def multiset_prod : multiset ↥(primes_le n) → pnat_factors_le n := λ s, multiset.prod ↑s
+namespace pnat_fac_le
 
--- lemma prod_factors_eq_self' (x : ↥(pnat_factors_le n)) : ↑(multiset_prod (factor_multiset x)) = (↑x : ℕ+) :=
+-- lemma prod_factors_eq_self' (x : ↥(pnat_fac_le n)) : ↑(multiset_prod (factor_multiset x)) = (↑x : ℕ+) :=
 -- begin
 --   simp [multiset_prod, factor_multiset],
 --   unfold_coes,
@@ -143,11 +142,12 @@ def multiset_prod : multiset ↥(primes_le n) → pnat_factors_le n := λ s, mul
 --   exact h,
 -- end
 
-lemma prod_factors_eq_self (x : ↥(pnat_factors_le n)) : multiset_prod (factor_multiset x) = x :=
+lemma prod_factors_eq_self (x : ↥(pnat_fac_le n)) :
+  primes_le.multiset_prod (pnat_fac_le.factor_multiset x) = x :=
 begin
   -- Easier to work with ℕ+?
   rw ← subtype.coe_inj,
-  simp [multiset_prod, factor_multiset],
+  simp [primes_le.multiset_prod, pnat_fac_le.factor_multiset],
   unfold_coes,
   simp,
   rw (_ : (λ u, ⟨↑↑u, _⟩ : {a // a ∈ pnat.factor_multiset ↑x} → ℕ+) = (coe : nat.primes → ℕ+) ∘ coe),
@@ -160,15 +160,15 @@ begin
   exact h,
 end
 
-lemma factor_prod_primes_eq_self (s : multiset ↥(primes_le n)) : factor_multiset (multiset_prod s) = s :=
+lemma factor_prod_primes_eq_self (s : multiset ↥(primes_le n)) : pnat_fac_le.factor_multiset (primes_le.multiset_prod s) = s :=
 begin
   -- Easier to work with prime_multiset?
   rw ← primes_le.injective_coe_prime_multiset.eq_iff,
-  simp [multiset_prod, factor_multiset],
+  simp [primes_le.multiset_prod, pnat_fac_le.factor_multiset],
   unfold_coes,
   simp,
   rw multiset.attach_map_coe,
-  rw (_ : ↑((↑s : multiset ↥(pnat_factors_le n)).prod) = (s : prime_multiset).prod),
+  rw (_ : ↑((↑s : multiset ↥(pnat_fac_le n)).prod) = (s : prime_multiset).prod),
   { rw prime_multiset.factor_multiset_prod, unfold_coes, },
   { push_cast,
     unfold_coes,
@@ -184,55 +184,33 @@ begin
     unfold_coes, },
 end
 
-def equiv_multiset : pnat_factors_le n ≃ multiset (primes_le n) :=
-{ to_fun    := factor_multiset,
-  inv_fun   := multiset_prod,
+def equiv_multiset : pnat_fac_le n ≃ multiset (primes_le n) :=
+{ to_fun    := pnat_fac_le.factor_multiset,
+  inv_fun   := primes_le.multiset_prod,
   left_inv  := prod_factors_eq_self,
   right_inv := factor_prod_primes_eq_self, }
 
-end pnat_factors_le
+end pnat_fac_le
 
-
-def multiset_prime_pows (ks : (Π (p : nat.primes), p ∈ primes_le n → ℕ)) : multiset ↥(primes_le n) :=
-  multiset.bind finset.univ.val
-  (λ p, multiset.replicate (ks p.val p.prop) p : ↥(primes_le n) → multiset ↥(primes_le n))
 
 -- Another trivial coe...
 instance multiset_primes_le_has_coe : has_coe (multiset (primes_le n)) prime_multiset :=
 { coe := λ s, s.map coe }
 
--- lemma count_multiset_prime_pows {p : primes_le n} {ks : (Π (p : nat.primes), p ∈ primes_le n → ℕ)} :
---   multiset.count p (multiset_prime_pows ks) = ks p.val p.prop :=
--- begin
---   rw multiset_prime_pows, simp,
---   rw multiset.count_bind,
---   simp_rw multiset.count_replicate,
---   -- rw ← finset.sum,
---   -- Not sure how to get around the attach...
---   have h : ∀ {f : ↥(primes_le n) → ℕ}, (finset.univ : finset ↥(primes_le n)).sum f = (multiset.map f (primes_le n).val.attach).sum := by {
---     intros f,
---     rw finset.sum,
---     simp,
---   },
---   rw ← h,
---   rw finset.sum_ite_eq,
---   simp,
--- end
 
+/- Show equivalence between (with_pnat_fac_le n) and finset.pi so that we can equate to geometric sum. -/
 
-/- Show equivalence between (with_pnat_factors_le n) and finset.pi so that we can equate to geometric sum. -/
-
-def multiset_to_pi' {α : Type*} [decidable_eq α] {s : finset α}
+def multiset_to_finset_pi {α : Type*} [decidable_eq α] {s : finset α}
   (f : multiset ↥s) : Π (x : α), x ∈ s → ℕ := λ x hx, f.count ⟨x, hx⟩
 
-def pi_to_multiset' {α : Type*} {s : finset α}
+def finset_pi_to_multiset {α : Type*} {s : finset α}
   (f : Π (x : α), x ∈ s → ℕ) : multiset ↥s :=
   (finset.univ : finset ↥s).val.bind (λ x, multiset.replicate (f x.val x.property) x)
 
-lemma pi_to_multiset_to_pi' {α : Type*} [decidable_eq α] {s : finset α} (f : multiset ↥s) :
-  pi_to_multiset' (multiset_to_pi' f) = f :=
+lemma pi_to_multiset_to_pi {α : Type*} [decidable_eq α] {s : finset α} (f : multiset ↥s) :
+  finset_pi_to_multiset (multiset_to_finset_pi f) = f :=
 begin
-  simp [multiset_to_pi', pi_to_multiset'],
+  simp [multiset_to_finset_pi, finset_pi_to_multiset],
   ext x,
   rw multiset.count_bind,
   simp_rw multiset.count_replicate,
@@ -242,10 +220,10 @@ begin
   simp [ite_eq_left_iff],
 end
 
-lemma multiset_to_pi_to_multiset' {α : Type*} [decidable_eq α] {s : finset α} (f : Π (x : α), x ∈ s → ℕ) :
-  multiset_to_pi' (pi_to_multiset' f) = f :=
+lemma multiset_to_pi_to_multiset {α : Type*} [decidable_eq α] {s : finset α} (f : Π (x : α), x ∈ s → ℕ) :
+  multiset_to_finset_pi (finset_pi_to_multiset f) = f :=
 begin
-  simp [multiset_to_pi', pi_to_multiset'],
+  simp [multiset_to_finset_pi, finset_pi_to_multiset],
   ext x hx,
   simp [multiset.count_bind, multiset.count_replicate],
   rw ← finset.attach_val,
@@ -256,25 +234,16 @@ begin
   exact finset.mem_attach _ _,
 end
 
-def equiv_multiset_pi' {α : Type*} [decidable_eq α] {s : finset α} :
+def equiv_multiset_finset_pi {α : Type*} [decidable_eq α] {s : finset α} :
   multiset ↥s ≃ (Π (x : α), x ∈ s → ℕ) :=
-{ to_fun    := multiset_to_pi',
-  inv_fun   := pi_to_multiset',
-  left_inv  := pi_to_multiset_to_pi',
-  right_inv := multiset_to_pi_to_multiset', }
+{ to_fun    := multiset_to_finset_pi,
+  inv_fun   := finset_pi_to_multiset,
+  left_inv  := pi_to_multiset_to_pi,
+  right_inv := multiset_to_pi_to_multiset, }
 
-def equiv_pnat_factors_le_pi : pnat_factors_le n ≃ (Π (p : nat.primes), p ∈ primes_le n → ℕ) :=
-  equiv.trans pnat_factors_le.equiv_multiset equiv_multiset_pi'
+def equiv_pnat_fac_le_finset_pi : pnat_fac_le n ≃ (Π (p : nat.primes), p ∈ primes_le n → ℕ) :=
+  equiv.trans pnat_fac_le.equiv_multiset equiv_multiset_finset_pi
 
-
-/-------------------------------------------------------------------------------
-  This is where we're going!
--------------------------------------------------------------------------------/
-
-noncomputable def prod_geom_series (n : ℕ) : nnreal := ∏ p : nat.primes in primes_le n, (1 - (↑p)⁻¹)⁻¹
-
-noncomputable def prod_sum_inv_primes_le (n : ℕ) : ℕ → nnreal :=
-  λ m, ∏ p : nat.primes in primes_le n, ∑ k : ℕ in finset.range m, (p : nnreal)⁻¹ ^ k
 
 def finset_pi_range (n : ℕ) : ℕ → finset (Π (p : nat.primes), p ∈ primes_le n → ℕ) :=
   λ m, (primes_le n).pi (λ (p : nat.primes), finset.range m)
@@ -330,117 +299,124 @@ begin
   exact nat.lt_succ_self _,
 end
 
-lemma tendsto_prod_sum_inv_prod_geom_series {n : ℕ} :
-  tendsto (prod_sum_inv_primes_le n) at_top (nhds (prod_geom_series n)) :=
+
+noncomputable def prod_sum_inv_primes_le (n : ℕ) : ℕ → nnreal :=
+  λ m, ∏ p in primes_le n, ∑ k in finset.range m, (↑p)⁻¹ ^ k
+
+lemma tendsto_prod_sum_inv_prod_geom_series (n : ℕ) :
+  tendsto (prod_sum_inv_primes_le n) at_top
+  (nhds (∏ p in primes_le n, (1 - (↑p)⁻¹)⁻¹)) :=
 begin
-  rw [prod_sum_inv_primes_le, prod_geom_series],
   apply tendsto_finset_prod,
   intros p hp,
-  -- rw ← has_sum_iff_tendsto_nat_of_nonneg,
   apply has_sum.tendsto_sum_nat,
   refine nnreal.has_sum_geometric _,
-  { rw inv_lt_one_iff,
-    apply or.inr,
-    norm_cast,
-    exact nat.prime.one_lt p.prop, },
+  rw inv_lt_one_iff,
+  apply or.inr,
+  norm_cast,
+  exact nat.prime.one_lt p.prop,
 end
-
-noncomputable def inv_nat : ℕ → nnreal := has_inv.inv ∘ coe
-noncomputable def inv_on_pnat_factors_le (n : ℕ) : ↥(pnat_factors_le n) → nnreal := inv_nat ∘ coe
 
 instance has_coe_submonoid_pnat_set_nat : has_coe (submonoid ℕ+) (set ℕ) :=
 { coe := λ sm, coe '' sm.carrier, }  -- Any better way to do this? coe is injective...
 
-
-lemma prod_finset_eq_prod_multiset {ks : Π (p : nat.primes), p ∈ primes_le n → ℕ} :
-  (↑∏ (i : {x // x ∈ primes_le n}) in (primes_le n).attach, (↑((↑(↑i : nat.primes) : ℕ+) ^ ks ↑i i.prop) : ℕ) : nnreal)⁻¹ =
-  inv_nat (↑((multiset.map (coe : ↥(pnat_factors_le n) → ℕ+) (↑(pi_to_multiset' ks) : multiset ↥(pnat_factors_le n))).prod) : ℕ) :=
+lemma prod_geom_to_ennreal {s : finset nat.primes} :
+  (↑(∏ p in s, (1 - (↑p : nnreal)⁻¹))⁻¹ : ennreal) = ∏ p in s, (↑(1 - (↑p : nnreal)⁻¹)⁻¹ : ennreal) :=
 begin
-  rw inv_nat,
-  simp,
-  rw pi_to_multiset',
-  simp,
+  rw ← finset.prod_inv_distrib,
   push_cast,
-  -- Need to manipulate coes to get bind prod together.
-  -- Then we can use `multiset.prod_bind` and `multiset.prod_replicate`.
-  rw ← submonoid.coe_multiset_prod,
-  rw (_ : ∀ {s : multiset ↥(primes_le n)}, (↑s : multiset ↥(pnat_factors_le n)) = multiset.map coe s),
-  rotate, { unfold_coes, simp, },
-  rw multiset.map_bind,
-  rw multiset.prod_bind,
-  simp_rw multiset.map_replicate,
-  -- TODO: Should be included in @[simp].
-  -- simp [submonoid.coe_multiset_prod],
-  rw submonoid.coe_multiset_prod, -- prod on ↥(pnat_factors_le n) to prod on ℕ+
-  simp,
-  rw ← pnat.coe_coe_monoid_hom,  -- replace coe : ℕ+ → ℕ with ⇑pnat.coe_monoid_hom
-  rw monoid_hom.map_multiset_prod, -- prod on ℕ+ to prod on ℕ
-  rw multiset.map_map,
-  rw nat.cast_multiset_prod, -- prod on ℕ to prod on nnreal
-  rw finset.prod_eq_multiset_prod,
-  rw multiset.map_map,
-  rw finset.attach_val,  -- Doesn't work?
-  rw multiset.map_congr rfl,
-  intros p hp,
-  simp,
-  norm_cast,
 end
 
-
-theorem sum_inv_pnat_factors_le_eq_prod_geom_series : has_sum (inv_on_pnat_factors_le n) (prod_geom_series n) :=
+theorem sum_inv_pnat_fac_le_eq_prod_geom_series :
+  has_sum
+  (λ p, (↑p)⁻¹ : ↥(pnat_fac_le n) → nnreal)
+  (∏ p in primes_le n, (1 - (↑p)⁻¹)⁻¹) :=
 begin
-  -- rw has_sum_inv_pnat_factors_le_iff_pi,
-  rw ← equiv.has_sum_iff equiv_pnat_factors_le_pi.symm,
-  simp [equiv_pnat_factors_le_pi, equiv_multiset_pi', pnat_factors_le.equiv_multiset, equiv.trans],
+  -- Convert from sum over pnat_fac_le to sum over finset.pi.
+  rw ← equiv.has_sum_iff equiv_pnat_fac_le_finset_pi.symm,
+  simp [equiv_pnat_fac_le_finset_pi, equiv_multiset_finset_pi, pnat_fac_le.equiv_multiset, equiv.trans],
 
   -- Switch to ennreal to work with ∑' and ⨆.
-  rw ← ennreal.has_sum_coe, simp,
+  rw ← ennreal.has_sum_coe,
+  simp,
   rw summable.has_sum_iff ennreal.summable,  -- Shorter version exists?
   rw ennreal.tsum_eq_supr_sum,
 
-  have h₂ := @tendsto_prod_sum_inv_prod_geom_series n,
-  rw prod_sum_inv_primes_le at h₂,
-  simp_rw finset.prod_sum at h₂,
+  have h := tendsto_prod_sum_inv_prod_geom_series n,
+  rw prod_sum_inv_primes_le at h,
+  simp_rw finset.prod_sum at h,
 
   -- Sum of nnreal will be equal to supremum over subsets.
-  -- And limit over a sequence of subsets that approaches at_top will be supremum?
-  -- Need to show supremum is obtained by the one limit we have?
+  -- And limit over a sequence of subsets that approaches at_top will be supremum.
+  -- Need to show that the limit we have gives the supremum.
 
-  have h :
-    (λ (m : ℕ), ∑ (p : Π (a : nat.primes), a ∈ primes_le n → ℕ) in (primes_le n).pi (λ (a : nat.primes), finset.range m),
-      ∏ (x : {x // x ∈ primes_le n}) in (primes_le n).attach, (↑(x.val) : nnreal)⁻¹ ^ p x.val x.property) =
-    (λ (s : finset (Π (p : nat.primes), p ∈ primes_le n → ℕ)), ∑ (p : Π (a : nat.primes), a ∈ primes_le n → ℕ) in s,
-      ∏ (x : {x // x ∈ primes_le n}) in (primes_le n).attach, (↑(x.val) : nnreal)⁻¹ ^ p x.val x.property)
-    ∘ finset_pi_range n := by
-  { simp [finset_pi_range], },
-  rw h at h₂,
-  clear h,
+  -- Change range of summation.
+  -- TODO: Is there an identity for this? finset.image?
+  rw (by { simp [finset_pi_range], } :
+    ∀ {f : (Π (p : nat.primes), p ∈ primes_le n → ℕ) → nnreal},
+    (λ (m : ℕ), ∑ ks in (primes_le n).pi (λ (a : nat.primes), finset.range m), f ks) =
+    (λ (s : finset (Π (p : nat.primes), p ∈ primes_le n → ℕ)), ∑ ks in s, f ks) ∘ finset_pi_range n)
+    at h,
+
   rw ← tendsto_iff_tendsto_subseq_of_monotone
     (_ : monotone
-      (λ (s : finset (Π (p : nat.primes), p ∈ primes_le n → ℕ)), ∑ (p : Π (a : nat.primes), a ∈ primes_le n → ℕ) in s,
-        ∏ (x : {x // x ∈ primes_le n}) in (primes_le n).attach, (↑(x.val) : nnreal)⁻¹ ^ p x.val x.property))
+      (λ (s : finset (Π (p : nat.primes), p ∈ primes_le n → ℕ)),
+        ∑ p in s, ∏ x in (primes_le n).attach, (↑(x.val) : nnreal)⁻¹ ^ p x.val x.property))
     tendsto_pi_range_at_top_at_top
-    at h₂,
+    at h,
   rotate,
   { rw monotone,
-    intros a b h,
+    intros a b h',
     apply finset.sum_le_sum_of_subset,
-    exact h, },
+    exact h', },
 
   -- Switch to ennreal (need complete_linear_order).
-  rw ← ennreal.tendsto_coe at h₂, simp at h₂,
-  replace h₂ := supr_eq_of_tendsto _ h₂, rotate,
+  rw ← ennreal.tendsto_coe at h,
+  push_cast at h,  -- Move coe for supr_eq_of_tendsto.
+  replace h := supr_eq_of_tendsto _ h,
+  rotate,
   { rw monotone,
-    intros a b h,
+    intros a b h',
     norm_cast,
     apply finset.sum_le_sum_of_subset,
-    exact h, },
+    exact h', },
 
-  norm_cast at h₂,
-  norm_cast,
+  -- Make the RHS match.
+  push_cast,
+  simp_rw ← coe_coe,
+  rw prod_geom_to_ennreal,
+  rw ← h,
+  clear h,
 
-  simp [inv_on_pnat_factors_le, pnat_factors_le.multiset_prod],
+  have h : ∀ {f g : _ → ennreal},
+    f = g →
+    (⨆ (s : finset (Π (p : nat.primes), p ∈ primes_le n → ℕ)), ∑ x in s, f x) =
+    (⨆ (s : finset (Π (p : nat.primes), p ∈ primes_le n → ℕ)), ∑ x in s, g x) := by
+  { intros f g hf, rw hf, },
+  apply h,
+  clear h,
+
+  apply funext,
+  intro x,
+  simp [primes_le.multiset_prod, finset_pi_to_multiset],
   norm_cast,
-  simp_rw prod_finset_eq_prod_multiset at h₂,
-  exact h₂,
+  simp,
+  -- Now need to get the ennreal out from inside the ⁻¹?
+  rw (by simp : ∀ {x : ℕ}, (↑x : ennreal) =  ↑(↑x : nnreal)),
+  rw ← ennreal.coe_inv _,
+  rotate, { simp, },
+  -- Timeout with simp here.
+  rw ennreal.coe_eq_coe,
+  rw inv_inj,
+  rw ← submonoid.coe_multiset_prod,
+  rw (_ : ∀ {s : multiset ↥(primes_le n)}, (↑s : multiset ↥(pnat_fac_le n)) = multiset.map coe s),
+  rotate, { unfold_coes, simp, },
+  simp [multiset.map_bind],
+  rw ← pnat.coe_coe_monoid_hom,  -- replace coe : ℕ+ → ℕ with ⇑pnat.coe_monoid_hom
+  rw monoid_hom.map_multiset_prod, -- convert prod ℕ+ to prod ℕ
+  simp [finset.prod_eq_multiset_prod],
+  rw multiset.map_congr rfl,
+  intros p hp,
+  -- Timeout with simp here.
+  repeat { rw ← coe_coe, },
 end
