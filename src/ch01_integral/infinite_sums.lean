@@ -20,6 +20,8 @@ import algebra.group.basic  -- inv_inj
 import algebra.group_power.basic  -- inv_pow
 import algebra.big_operators.basic  -- finset.prod_inv_distrib
 
+import .factors_le
+
 open real filter
 open_locale big_operators
 
@@ -27,12 +29,13 @@ variables {n : ℕ}
 
 def primes_le (n : ℕ) : finset nat.primes := (finset.range (n+1)).subtype nat.prime 
 
-def all_factors_le (n k : ℕ) : Prop := ∀ (p : ℕ), p ∈ k.factors → p ≤ n
+-- def all_factors_le (n k : ℕ) : Prop := ∀ (p : ℕ), p ∈ k.factors → p ≤ n
+
 
 -- Define (commutative) submonoid of pnat using only primes_le n (closed under mul).
 -- Later: Establish equivalence of (pnat_fac_le n) and finset.pi (for prod_sum).
 def pnat_fac_le (n : ℕ) : submonoid ℕ+ := {
-  carrier := {x | all_factors_le n x},  -- Doesn't need decidable?
+  carrier := {x : ℕ+ | all_factors_le n ↑x},  -- Doesn't need decidable?
   mul_mem' := by {
     simp [all_factors_le],
     intros a b ha hb p,
@@ -327,7 +330,7 @@ begin
   push_cast,
 end
 
-theorem sum_inv_pnat_fac_le_eq_prod_geom_series :
+theorem sum_inv_pnat_fac_le_eq_prod_geom_series (n : ℕ) :
   has_sum
   (λ p, (↑p)⁻¹ : ↥(pnat_fac_le n) → nnreal)
   (∏ p in primes_le n, (1 - (↑p)⁻¹)⁻¹) :=

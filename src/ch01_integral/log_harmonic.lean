@@ -16,7 +16,8 @@ begin
   simp,
 end
 
-noncomputable def harmonic (n : ℕ) := (finset.Icc 1 n).sum (λ k, (↑k)⁻¹ : ℕ → ℝ)
+noncomputable def harmonic (n : ℕ) : nnreal := (finset.Icc 1 n).sum (λ k, (↑k)⁻¹)
+
 noncomputable def staircase (x : ℝ) : ℝ := (↑⌊x⌋)⁻¹
 
 

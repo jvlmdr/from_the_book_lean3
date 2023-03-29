@@ -13,20 +13,30 @@ import order.with_bot  -- with_bot.decidable_le
 
 open_locale big_operators
 
-
-def is_prime_le (n p : ℕ) : Prop := p ≤ n ∧ p.prime
-
--- Is this necessary? Feels redundant?
-instance decidable_is_prime_le (n p : ℕ) : decidable (is_prime_le n p) :=
-begin
-  apply decidable_of_iff (p ≤ n ∧ p.prime),
-  rw is_prime_le,
-end
+-- def is_prime_le (n p : ℕ) : Prop := p ≤ n ∧ p.prime
+--
+-- -- Is this necessary? Feels redundant?
+-- instance decidable_is_prime_le (n p : ℕ) : decidable (is_prime_le n p) :=
+-- begin
+--   apply decidable_of_iff (p ≤ n ∧ p.prime),
+--   rw is_prime_le,
+-- end
 
 -- Could define all_factors_le using k.factors.maximum ≤ n?
 -- However, it's difficult to work with (list.maximum ≤ n).
 -- Instead define with for-all statement; use list.maximum to prove decidable.
+-- TODO: Consider k in ℕ+ rather than ℕ?
 def all_factors_le (n k : ℕ) : Prop := ∀ (p : ℕ), p ∈ k.factors → p ≤ n
+
+lemma all_factors_le_one (n : ℕ) : all_factors_le n 1 := by simp [all_factors_le]
+
+lemma all_factors_le_of_le {n : ℕ} {k : ℕ} (hk : k ≤ n) : all_factors_le n k :=
+begin
+  rw all_factors_le,
+  intros p hp,
+  apply le_trans _ hk,
+  exact nat.le_of_mem_factors hp,
+end
 
 -- Prove decidable.
 
