@@ -129,6 +129,7 @@ begin
     push_cast,
     simp_rw piece_integral_staircase_eq,
     rw harmonic,
+    push_cast,
     rw finset_Ico_succ, },
   { -- Prove each interval is integrable.
     simp_rw step,
