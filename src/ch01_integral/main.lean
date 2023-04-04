@@ -3,6 +3,7 @@ import .log_harmonic
 import .factors_le
 
 import data.finset.image
+import data.finset.card
 import data.pnat.defs
 import data.real.basic
 import data.real.nnreal
@@ -12,20 +13,22 @@ import data.nat.interval
 import data.subtype
 import order.filter.basic
 import order.filter.at_top_bot
+import order.basic
 import order.monotone.basic
 import algebra.big_operators.basic
-import topology.algebra.infinite_sum
 import algebra.group.basic
 import algebra.group_with_zero.defs
 import algebra.order.positive.field
 import algebra.field.defs
 import algebra.hom.group
+import topology.algebra.infinite_sum
 
 open real filter
 open_locale big_operators
 
 
 def prime_index (p : nat.primes) : ℕ := finset.card (primes_le ↑p)
+-- def prime_index : nat.primes → ℕ := λ p, finset.card (primes_le ↑p)
 
 #eval prime_index ⟨2, nat.prime_two⟩
 #eval prime_index ⟨3, nat.prime_three⟩
@@ -40,11 +43,6 @@ begin
   { simp [mul_sub, mul_comm], exact h, },
   { simp, exact hb, },
   { simp, exact ha, },
-end
-
-lemma prime_index_le_prime {p : nat.primes} : prime_index p + 1 ≤ ↑p :=
-begin
-  sorry,
 end
 
 -- noncomputable instance linear_ordered_comm_group_positive : linear_ordered_comm_group {x : ℝ // 0 < x} :=
@@ -86,7 +84,7 @@ end
 
 -- noncomputable instance real_semifield : semifield ℝ := field.to_semifield
 -- noncomputable instance real_comm_group_with_zero : comm_group_with_zero ℝ := semifield.to_comm_group_with_zero ℝ
--- lemma finset_prod_range_div_of_ne_zero (f : ℕ → ℝ) (n : ℕ) (h_nonzero : ∀ k, f k ≠ 0) : 
+-- lemma finset_prod_range_div_of_ne_zero (f : ℕ → ℝ) (n : ℕ) (h_nonzero : ∀ k, f k ≠ 0) :
 --   (finset.range n).prod (λ i, f (i+1) / f i) = f n / f 0 :=
 
 -- `finset.prod_range_div` requires `comm_group` (must exclude zero).
@@ -133,6 +131,147 @@ begin
   rw mul_inv_cancel (has_lt.lt.ne' hx''),
 end
 
+@[mono]
+lemma primes_le_mono : monotone primes_le :=
+begin
+  simp [monotone],
+  intros a b h,
+  simp [primes_le],
+  apply finset.subtype_mono,
+  apply finset.range_mono,
+  simp,
+  exact h,
+end
+
+@[simp]
+lemma primes_le_two_eq : (primes_le 2) = {⟨2, nat.prime_two⟩} :=
+begin
+  simp [primes_le],
+  ext,
+  simp,
+  have h := nat.prime.two_le a.prop,
+  rw nat.lt_succ_iff,
+  rw has_le.le.le_iff_eq h,
+  rw ← nat.primes.coe_nat_inj,
+  simp,
+end
+
+lemma two_mem_primes_le_prime {p : nat.primes} : (⟨2, nat.prime_two⟩ : nat.primes) ∈ primes_le ↑p :=
+begin
+  simp [primes_le],
+  rw nat.lt_succ_iff,
+  apply nat.prime.two_le p.prop,
+end
+
+@[simp]
+lemma nonempty_primes_le_prime {p : nat.primes} : finset.nonempty (primes_le ↑p) :=
+begin
+  rw finset.nonempty,
+  existsi (⟨2, nat.prime_two⟩ : nat.primes),
+  exact two_mem_primes_le_prime,
+end
+
+@[simp]
+lemma mem_primes_le_self (p : nat.primes) : p ∈ primes_le p := by simp [primes_le]
+
+-- Needed for strict_mono.
+instance preorder_primes : preorder nat.primes := subtype.preorder _
+
+lemma not_mem_of_lt {p q : nat.primes} (h_lt : p < q) : q ∉ primes_le ↑p :=
+begin
+  rw primes_le,
+  intro h,
+  simp at h,
+  cases p with p hp,
+  cases q with q hq,
+  simp at *,
+  clear hp hq,
+  linarith,
+end
+
+lemma prime_index_strict_mono : strict_mono prime_index :=
+begin
+  simp [strict_mono, prime_index],
+  intros p q h,
+  apply finset.card_lt_card,
+  rw finset.ssubset_iff_of_subset _,
+  { existsi q,
+    have hq := mem_primes_le_self q,
+    existsi hq,
+    apply not_mem_of_lt h, },
+  { apply primes_le_mono,
+    simp,
+    exact le_of_lt h, },
+end
+
+-- Needed for function.injective.
+instance linear_order_primes : linear_order nat.primes := subtype.linear_order _
+
+lemma prime_index_injective : function.injective prime_index := strict_mono.injective prime_index_strict_mono
+
+lemma prime_index_le_prime {p : nat.primes} : prime_index p + 1 ≤ ↑p :=
+begin
+  rw prime_index,
+  cases p with n hn,
+  cases n, { simp [nat.not_prime_zero] at hn, contradiction, },
+  cases n, { simp [nat.not_prime_one] at hn, contradiction, },
+  cases n, { simp [primes_le_two_eq], },
+  -- TODO!
+  sorry,
+end
+
+lemma image_prime_index_eq_Icc {n : ℕ} : finset.image prime_index (primes_le n) = finset.Icc 1 (primes_le n).card :=
+begin
+  ext,
+  simp [prime_index],
+  apply iff.intro,
+  { intro h,
+    cases h with p h,
+    cases h with hp ha,
+    rw ← ha, clear ha,
+    apply and.intro,
+    { simp [nat.succ_le_iff, finset.card_pos], },
+    { sorry, }, },
+  { sorry, },
+  -- rw finset.mem_image,
+  -- rw prime_index,
+  -- simp,
+  -- sorry,
+end
+
+lemma prod_primes_le_prod_Icc {n : ℕ} : ∏ p in primes_le n, (↑p / (↑p - 1) : ℝ) ≤ ∏ k in finset.Icc 1 (finset.card (primes_le n)), (↑k + 1) / ↑k :=
+begin
+  have h' : ∀ (p : nat.primes), (↑p / (↑p - 1) : ℝ) ≤ (↑(prime_index p + 1)) / (↑(prime_index p + 1) - 1),
+  { intro p,
+    have h : (↑p : ℝ) = ↑(↑p : ℕ),
+    { norm_cast, },
+    rw h, clear h,
+    apply antitone_on_div_sub_one,
+    { simp [prime_index, finset.card_pos], },
+    { simp, exact nat.prime.one_lt p.prop, },
+    { exact prime_index_le_prime, }, },
+  have h : ∏ p in primes_le n, (↑p / (↑p - 1) : ℝ) ≤ ∏ p in primes_le n, (↑(prime_index p + 1)) / (↑(prime_index p + 1) - 1),
+  { apply finset.prod_le_prod,
+    { intros p hp,
+      have h : (1 : ℝ) < ↑p,
+      { norm_cast, exact nat.prime.one_lt p.prop, },
+      apply div_nonneg,
+      { simp, },
+      { rw sub_nonneg, exact le_of_lt h, }, },
+    { intros p hp,
+      exact h' _, }, },
+  clear h',
+  apply le_trans h, clear h,
+  apply le_of_eq,
+  push_cast,
+  simp_rw add_sub_cancel,
+  -- simp [-finset.prod_div_distrib],
+  rw ← image_prime_index_eq_Icc,
+  rw finset.prod_image,
+  intros p hp q hq,
+  apply prime_index_injective,
+end
+
 lemma prod_geom_series_primes_eq (n : ℕ) :
   ∏ p in primes_le n, ((1 - (↑p)⁻¹)⁻¹ : ℝ) ≤
   ↑(finset.card (primes_le n) + 1) :=
@@ -143,11 +282,7 @@ begin
     norm_cast,
     exact nat.prime.one_lt p.prop, },
   simp_rw h, clear h,
-  -- have h : ∏ p in primes_le n, (↑p / (↑p - 1) : ℝ) ≤ ∏ k in finset.Icc 1 (finset.card (primes_le n)), (↑k + 1) / ↑k,
-  -- { sorry, },
-  have h : ∏ p in primes_le n, (↑p / (↑p - 1) : ℝ) ≤ ∏ k in finset.Icc 1 (finset.card (primes_le n)), (↑k + 1) / ↑k,
-  { sorry, },
-  apply le_trans h, clear h,
+  apply le_trans prod_primes_le_prod_Icc,
   apply le_of_eq,
   have h := finset_prod_range_div_of_positive (λ x, (↑x + 1 : ℝ)) (primes_le n).card _,
   rotate, { norm_cast, simp, },
