@@ -16,6 +16,7 @@ import order.monotone.basic
 import algebra.big_operators.basic
 import topology.algebra.infinite_sum
 import algebra.group.basic
+import algebra.group_with_zero.defs
 import algebra.order.positive.field
 import algebra.field.defs
 import algebra.hom.group
@@ -121,13 +122,27 @@ begin
     exact hk, },
 end
 
+lemma div_sub_one_eq {x : ℝ} : 1 < x → (1 - x⁻¹)⁻¹ = x / (x - 1) :=
+begin
+  intro hx,
+  have hx' := inv_lt_one hx,
+  have hx'' := lt_trans zero_lt_one hx,
+  rw inv_eq_one_div,
+  rw div_eq_div_iff (has_lt.lt.ne' (sub_pos_of_lt hx')) (has_lt.lt.ne' (sub_pos_of_lt hx)),
+  simp [mul_sub],
+  rw mul_inv_cancel (has_lt.lt.ne' hx''),
+end
+
 lemma prod_geom_series_primes_eq (n : ℕ) :
   ∏ p in primes_le n, ((1 - (↑p)⁻¹)⁻¹ : ℝ) ≤
   ↑(finset.card (primes_le n) + 1) :=
 begin
-  have h : ∏ p in primes_le n, ((1 - (↑p)⁻¹)⁻¹ : ℝ) = ∏ p in primes_le n, ↑p / (↑p - 1),
-  { sorry, },
-  rw h, clear h,
+  have h : ∀ (p : nat.primes), ((1 - (↑p)⁻¹)⁻¹ : ℝ) = ↑p / (↑p - 1),
+  { intro p,
+    apply div_sub_one_eq,
+    norm_cast,
+    exact nat.prime.one_lt p.prop, },
+  simp_rw h, clear h,
   -- have h : ∏ p in primes_le n, (↑p / (↑p - 1) : ℝ) ≤ ∏ k in finset.Icc 1 (finset.card (primes_le n)), (↑k + 1) / ↑k,
   -- { sorry, },
   have h : ∏ p in primes_le n, (↑p / (↑p - 1) : ℝ) ≤ ∏ k in finset.Icc 1 (finset.card (primes_le n)), (↑k + 1) / ↑k,
