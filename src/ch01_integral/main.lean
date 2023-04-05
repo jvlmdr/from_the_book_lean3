@@ -31,9 +31,6 @@ open_locale big_operators
 def prime_index (p : nat.primes) : ℕ := finset.card (primes_le ↑p)
 -- def prime_index : nat.primes → ℕ := λ p, finset.card (primes_le ↑p)
 
-#eval prime_index ⟨2, nat.prime_two⟩
-#eval prime_index ⟨3, nat.prime_three⟩
-
 -- Could instead use fact that 1/(p-1) is antitone (on p > 1)?
 -- p / (p-1) = 1 + 1/(p-1) ≤ 1 + 1/k = (k+1)/k
 lemma antitone_on_div_sub_one : antitone_on (λ x, ↑x / (↑x - 1) : ℕ → ℝ) (set.Ioi 1) :=
@@ -220,15 +217,40 @@ instance linear_order_primes : linear_order nat.primes := subtype.linear_order _
 
 lemma prime_index_injective : function.injective prime_index := strict_mono.injective prime_index_strict_mono
 
+lemma card_primes_le_succ_le {n : ℕ} : (primes_le n.succ).card ≤ (primes_le n).card.succ :=
+begin
+  simp [primes_le],
+  rw finset.range_succ,
+  simp [nat.add_one],
+  rw finset.filter_insert,
+  rw apply_ite finset.card,
+  simp [nat.add_one],
+  apply le_trans (ite_le_sup _ _ _),
+  simp,
+  apply nat.le_succ,
+end
+
 lemma prime_index_le_prime {p : nat.primes} : prime_index p + 1 ≤ ↑p :=
 begin
-  rw prime_index,
-  cases p with n hn,
-  cases n, { simp [nat.not_prime_zero] at hn, contradiction, },
-  cases n, { simp [nat.not_prime_one] at hn, contradiction, },
-  cases n, { simp [primes_le_two_eq], },
-  -- TODO!
-  sorry,
+  cases p with n h,
+  revert h,
+  simp [prime_index],
+  intro h,
+  replace h := nat.prime.two_le h,
+  replace h := nat.lt_of_succ_le h,
+  replace h := ne_zero_of_lt h,
+  revert h,
+  cases n,
+  { simp, },
+  simp [nat.succ_le_succ_iff],
+  induction n with k h,
+  { simp [primes_le, finset.filter_eq_empty_iff],
+    intros p h2 hp,
+    replace hp := nat.prime.two_le hp,
+    linarith, },
+  apply le_trans card_primes_le_succ_le,
+  rw nat.succ_le_succ_iff,
+  apply h,
 end
 
 lemma prime_index_surj_on {n : ℕ} : ∀ i, i ∈ finset.Icc 1 (primes_le n).card → (∃ (p : nat.primes) (hp : p ∈ primes_le n), i = prime_index p) :=
