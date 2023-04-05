@@ -9,6 +9,7 @@ import data.real.basic
 import data.real.nnreal
 import data.real.ennreal
 import data.set.intervals.basic
+import data.set.function
 import data.nat.interval
 import data.subtype
 import order.filter.basic
@@ -131,7 +132,6 @@ begin
   rw mul_inv_cancel (has_lt.lt.ne' hx''),
 end
 
-@[mono]
 lemma primes_le_mono : monotone primes_le :=
 begin
   simp [monotone],
@@ -174,20 +174,31 @@ end
 @[simp]
 lemma mem_primes_le_self (p : nat.primes) : p ∈ primes_le p := by simp [primes_le]
 
--- Needed for strict_mono.
-instance preorder_primes : preorder nat.primes := subtype.preorder _
-
-lemma not_mem_of_lt {p q : nat.primes} (h_lt : p < q) : q ∉ primes_le ↑p :=
+namespace primes_le
+lemma not_mem_of_lt {n : ℕ} {q : nat.primes} (h_lt : n < ↑q) : q ∉ primes_le n :=
 begin
   rw primes_le,
   intro h,
   simp at h,
-  cases p with p hp,
   cases q with q hq,
   simp at *,
-  clear hp hq,
+  clear hq,
   linarith,
 end
+end primes_le
+
+-- Needed for strict_mono.
+instance preorder_primes : preorder nat.primes := subtype.preorder _
+
+-- TODO: Remove?
+namespace primes_le
+lemma not_mem_of_lt_prime {p q : nat.primes} (h_lt : p < q) : q ∉ primes_le ↑p :=
+begin
+  apply not_mem_of_lt,
+  norm_cast,
+  exact h_lt,
+end
+end primes_le
 
 lemma prime_index_strict_mono : strict_mono prime_index :=
 begin
@@ -198,7 +209,7 @@ begin
   { existsi q,
     have hq := mem_primes_le_self q,
     existsi hq,
-    apply not_mem_of_lt h, },
+    apply primes_le.not_mem_of_lt_prime h, },
   { apply primes_le_mono,
     simp,
     exact le_of_lt h, },
@@ -220,23 +231,49 @@ begin
   sorry,
 end
 
+lemma prime_index_surj_on {n : ℕ} : ∀ i, i ∈ finset.Icc 1 (primes_le n).card → (∃ (p : nat.primes) (hp : p ∈ primes_le n), i = prime_index p) :=
+begin
+  apply finset.surj_on_of_inj_on_of_card_le,
+  { -- maps_to (?)
+    intros p hp,
+    simp [prime_index],
+    apply and.intro,
+    { rw nat.succ_le_iff,
+      rw finset.card_pos,
+      apply nonempty_primes_le_prime, },
+    { mono,
+      apply primes_le_mono,
+      revert hp,
+      simp [primes_le, nat.lt_succ_iff], }, },
+  { -- inj_on
+    intros p q hp hq,
+    apply prime_index_injective, },
+  { -- card_le
+    simp, },
+end
+
 lemma image_prime_index_eq_Icc {n : ℕ} : finset.image prime_index (primes_le n) = finset.Icc 1 (primes_le n).card :=
 begin
-  ext,
-  simp [prime_index],
+  ext i,
   apply iff.intro,
-  { intro h,
-    cases h with p h,
-    cases h with hp ha,
-    rw ← ha, clear ha,
+  { simp [prime_index],
+    intros p hp hi,
+    rw ← hi, clear hi,
     apply and.intro,
     { simp [nat.succ_le_iff, finset.card_pos], },
-    { sorry, }, },
-  { sorry, },
-  -- rw finset.mem_image,
-  -- rw prime_index,
-  -- simp,
-  -- sorry,
+    { mono,
+      apply primes_le_mono,
+      revert hp,
+      simp [primes_le, nat.lt_succ_iff], }, },
+  { intro hi,
+    simp,
+    have h := prime_index_surj_on i hi,
+    cases h with p hp,  -- Is this a non-constructive proof?
+    existsi p,
+    cases hp with hp hi,
+    refine and.intro hp _,
+    rw eq_comm,
+    exact hi, },
 end
 
 lemma prod_primes_le_prod_Icc {n : ℕ} : ∏ p in primes_le n, (↑p / (↑p - 1) : ℝ) ≤ ∏ k in finset.Icc 1 (finset.card (primes_le n)), (↑k + 1) / ↑k :=
@@ -265,6 +302,7 @@ begin
   apply le_of_eq,
   push_cast,
   simp_rw add_sub_cancel,
+  -- Should use `finset.prod_bij`?
   -- simp [-finset.prod_div_distrib],
   rw ← image_prime_index_eq_Icc,
   rw finset.prod_image,
