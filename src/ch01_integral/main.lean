@@ -14,6 +14,7 @@ import data.nat.interval
 import data.subtype
 import order.filter.basic
 import order.filter.at_top_bot
+import order.filter.archimedean
 import order.basic
 import order.monotone.basic
 import algebra.big_operators.basic
@@ -23,6 +24,8 @@ import algebra.order.positive.field
 import algebra.field.defs
 import algebra.hom.group
 import topology.algebra.infinite_sum
+import topology.algebra.monoid
+import analysis.special_functions.log.basic
 
 open real filter
 open_locale big_operators
@@ -423,9 +426,9 @@ begin
   { simp, },
 end
 
-lemma log_le_card_primes {n : ℕ} : 
-  log (↑n + 1) ≤ ↑(finset.card (primes_le n) + 1) :=
+lemma log_succ_le_succ_card_primes (n : ℕ) : log (↑n.succ) ≤ ↑(primes_le n).card.succ :=
 begin
+  push_cast,
   apply le_trans log_add_one_le_harmonic,
   norm_cast,
   apply le_trans finset_sum_inv_le_tsum_pnat_inv,
@@ -446,7 +449,33 @@ begin
 end
 
 
+lemma tendsto_log_coe_nat : tendsto (λ (n : ℕ), log ↑n) at_top at_top :=
+begin
+  rw ← filter.tendsto_map'_iff,
+  sorry,
+end
+
+-- Should be possible to remove nat constraint?
+lemma tendsto_nat_add {β : Type*} [preorder β] {f : ℕ → β} (d : ℕ) :
+  tendsto (λ k, f (k + d)) at_top at_top ↔ tendsto f at_top at_top :=
+begin
+  rw ← filter.tendsto_map'_iff,
+  sorry,
+end
+
+lemma tendsto_add_const_at_top {α : Type*} [preorder α] {f : α → ℝ} (c : ℝ) :
+  tendsto (λ x, f x + c) at_top at_top ↔ tendsto f at_top at_top :=
+begin
+  -- rw filter.tendsto.const_add,
+  sorry,
+end
+
 theorem infinite_primes : tendsto (λ n, finset.card (primes_le n)) at_top at_top :=
 begin
-  sorry,
+  rw ← @tendsto_coe_nat_at_top_iff _ ℝ,
+  rw ← tendsto_add_const_at_top 1,
+  norm_cast,
+  apply filter.tendsto_at_top_mono log_succ_le_succ_card_primes,
+  rw @tendsto_nat_add _ _ (λ n, log ↑n) 1,
+  exact tendsto_log_coe_nat,
 end
