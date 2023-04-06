@@ -449,33 +449,18 @@ begin
 end
 
 
-lemma tendsto_log_coe_nat : tendsto (λ (n : ℕ), log ↑n) at_top at_top :=
+lemma tendsto_log_coe : tendsto (λ (n : ℕ), log ↑n) at_top at_top :=
 begin
-  rw ← filter.tendsto_map'_iff,
-  sorry,
-end
-
--- Should be possible to remove nat constraint?
-lemma tendsto_nat_add {β : Type*} [preorder β] {f : ℕ → β} (d : ℕ) :
-  tendsto (λ k, f (k + d)) at_top at_top ↔ tendsto f at_top at_top :=
-begin
-  rw ← filter.tendsto_map'_iff,
-  sorry,
-end
-
-lemma tendsto_add_const_at_top {α : Type*} [preorder α] {f : α → ℝ} (c : ℝ) :
-  tendsto (λ x, f x + c) at_top at_top ↔ tendsto f at_top at_top :=
-begin
-  -- rw filter.tendsto.const_add,
-  sorry,
+  apply filter.tendsto.comp tendsto_log_at_top,
+  apply tendsto_coe_nat_at_top_at_top,
 end
 
 theorem infinite_primes : tendsto (λ n, finset.card (primes_le n)) at_top at_top :=
 begin
   rw ← @tendsto_coe_nat_at_top_iff _ ℝ,
-  rw ← tendsto_add_const_at_top 1,
+  apply filter.tendsto_at_top_of_add_const_right (1 : ℝ),
   norm_cast,
   apply filter.tendsto_at_top_mono log_succ_le_succ_card_primes,
-  rw @tendsto_nat_add _ _ (λ n, log ↑n) 1,
-  exact tendsto_log_coe_nat,
+  rw @filter.tendsto_add_at_top_iff_nat ℝ (λ n, log ↑n) _ 1,
+  exact tendsto_log_coe,
 end
