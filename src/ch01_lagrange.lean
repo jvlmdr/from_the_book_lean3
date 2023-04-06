@@ -14,15 +14,6 @@ import order.monotone.basic
 
 def mersenne (n : ℕ) := 2 ^ n - 1  -- number_theory.lucas_lehmer
 
-
-lemma order_eq_of_two_ne_one {p q : ℕ} [hp : fact (nat.prime p)] :
-  (2 : zmod q) ≠ 1 → (2 : zmod q)^p = 1 → order_of (2 : zmod q) = p :=
-begin
-  intro h_ne,
-  intro h,
-  apply order_of_eq_prime h h_ne,
-end
-
 -- 2 ≠ 1 in F_q for q ≥ 2.
 -- Useful for order_of_eq_prime.
 lemma zmod_two_ne_one {q : ℕ} : 2 ≤ q → (2 : zmod q) ≠ 1 :=
@@ -71,12 +62,6 @@ begin
   simp at h_dvd,
   rw sub_eq_zero at h_dvd,
   exact h_dvd,
-end
-
-lemma two_pow_even {n : ℕ} : 0 < n → 2 ∣ 2 ^ n :=
-begin
-  cases n, simp,
-  simp [pow_succ],
 end
 
 lemma mersenne_odd {n : ℕ} : 0 < n → ¬ 2 ∣ mersenne n :=
@@ -167,7 +152,6 @@ begin
   simp,
 end
 
--- Prove that make_prime n generates a new prime number for any n.
 theorem infinite_primes (p : ℕ) :
   nat.prime p → ∃ (q : ℕ), nat.prime q ∧ p < q :=
 begin
@@ -183,18 +167,18 @@ end
 
 
 -- Just for fun, try out the mapping from ℕ to primes.
-def make_prime : ℕ → ℕ
+def gen_prime : ℕ → ℕ
 | 0 := 2
-| (n+1) := (mersenne (make_prime n)).min_fac
+| (n+1) := (mersenne (gen_prime n)).min_fac
 
-#eval make_prime 3  -- 127
--- make_prime 4 requires (2^127 - 1).min_fac
+#eval gen_prime 3  -- 127
+-- gen_prime 4 requires (2^127 - 1).min_fac
 
-lemma one_lt_make_prime (n : ℕ) : 1 < make_prime n :=
+lemma one_lt_make_prime (n : ℕ) : 1 < gen_prime n :=
 begin
   induction n with k hk,
-    rw make_prime, simp,
-  rw make_prime,
+    rw gen_prime, simp,
+  rw gen_prime,
   apply nat.prime.one_lt,
   apply nat.min_fac_prime,
   have h := one_lt_mersenne hk,
@@ -202,31 +186,31 @@ begin
   rw h' at h, simp at h, contradiction,
 end
 
-lemma make_prime_is_prime (n : ℕ) : (make_prime n).prime :=
+lemma make_prime_is_prime (n : ℕ) : (gen_prime n).prime :=
 begin
-  cases n, rw make_prime, apply nat.prime_two,
-  rw make_prime,
+  cases n, rw gen_prime, apply nat.prime_two,
+  rw gen_prime,
   apply nat.min_fac_prime,
   have h := one_lt_mersenne (one_lt_make_prime n),
   intro h',
   rw h' at h, simp at h, contradiction,
 end
 
-lemma make_prime_lt_make_prime_succ (k : ℕ) : make_prime k < make_prime k.succ :=
+lemma make_prime_lt_make_prime_succ (k : ℕ) : gen_prime k < gen_prime k.succ :=
 begin
   have hp := make_prime_is_prime k,
   have hq := make_prime_is_prime k.succ,
-  apply @lt_of_dvd_mersenne (make_prime k) (make_prime k.succ) (fact.mk hp) (fact.mk hq),
-  rw make_prime,
+  apply @lt_of_dvd_mersenne (gen_prime k) (gen_prime k.succ) (fact.mk hp) (fact.mk hq),
+  rw gen_prime,
   apply nat.min_fac_dvd,
 end
 
-lemma make_prime_strict_mono {k n : ℕ} : k < n → make_prime k < make_prime n :=
+lemma make_prime_strict_mono {k n : ℕ} : k < n → gen_prime k < gen_prime n :=
   by apply strict_mono_nat_of_lt_succ make_prime_lt_make_prime_succ
 
--- Prove that make_prime n generates a new prime number for any n.
+-- Prove that gen_prime n generates a new prime number for any n.
 theorem infinite_primes' (n : ℕ) :
-  nat.prime (make_prime n) ∧ ∀ (k : ℕ), k < n → make_prime k < make_prime n :=
+  nat.prime (gen_prime n) ∧ ∀ (k : ℕ), k < n → gen_prime k < gen_prime n :=
 begin
   apply and.intro (make_prime_is_prime _),
   intro k,
